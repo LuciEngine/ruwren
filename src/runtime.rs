@@ -1,12 +1,12 @@
 use crate::{UserData, WrenError};
 use std::{ffi, os::raw};
-use wren_sys::{WrenErrorType, WrenForeignClassMethods, WrenVM};
+use wren_sys::{WrenErrorType, WrenForeignClassMethods, WrenLoadModuleResult, WrenVM};
 
 // Force Wren to use Rust's allocator to allocate memory
 // Done because sometimes Wren forces us to allocate memory and give *it* ownership
 // Rust might not use the standard allocator, so we move Wren to use *our* allocator
 pub extern "C" fn wren_realloc(
-    memory: *mut ffi::c_void, new_size: wren_sys::size_t,
+    memory: *mut ffi::c_void, new_size: wren_sys::size_t, _: *mut ::std::os::raw::c_void,
 ) -> *mut ffi::c_void {
     unsafe {
         if memory.is_null() {
@@ -136,7 +136,9 @@ pub extern "C" fn wren_bind_foreign_class(
     fcm
 }
 
-pub extern "C" fn wren_load_module(vm: *mut WrenVM, name: *const raw::c_char) -> *mut raw::c_char {
+pub extern "C" fn wren_load_module(
+    vm: *mut WrenVM, name: *const raw::c_char,
+) -> WrenLoadModuleResult {
     // The whoooole reason we wrote wren_realloc - to force Wren into Rust's allocation space
     let conf = unsafe { &mut *(wren_sys::wrenGetUserData(vm) as *mut UserData) };
     let module_name = unsafe { ffi::CStr::from_ptr(name) };
@@ -144,15 +146,26 @@ pub extern "C" fn wren_load_module(vm: *mut WrenVM, name: *const raw::c_char) ->
         .loader
         .load_script(module_name.to_string_lossy().to_string())
     {
-        Some(string) => ffi::CString::new(string)
-            .unwrap_or_else(|_| {
-                panic!(
-                    "Failed to convert source to C string for {}",
-                    module_name.to_string_lossy()
-                )
-            })
-            .into_raw(),
-        None => std::ptr::null_mut(),
+        Some(string) => {
+            let source = ffi::CString::new(string)
+                .unwrap_or_else(|_| {
+                    panic!(
+                        "Failed to convert source to C string for {}",
+                        module_name.to_string_lossy()
+                    )
+                })
+                .into_raw();
+            WrenLoadModuleResult {
+                source,
+                userData: std::ptr::null_mut(),
+                onComplete: None,
+            }
+        }
+        None => WrenLoadModuleResult {
+            source: std::ptr::null_mut(),
+            userData: std::ptr::null_mut(),
+            onComplete: None,
+        },
     }
 }
 

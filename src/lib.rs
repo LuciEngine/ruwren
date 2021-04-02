@@ -1017,6 +1017,17 @@ impl VM {
         }
     }
 
+    pub fn has_variable<M: AsRef<str>, N: AsRef<str>>(&self, module: M, name: N) -> bool {
+        let module = ffi::CString::new(module.as_ref()).expect("module name conversion failed");
+        let name = ffi::CString::new(name.as_ref()).expect("variable name conversion failed");
+        unsafe { wren_sys::wrenHasVariable(self.vm, module.as_ptr(), name.as_ptr()) }
+    }
+
+    pub fn has_module<M: AsRef<str>, N: AsRef<str>>(&self, module: M) -> bool {
+        let module = ffi::CString::new(module.as_ref()).expect("module name conversion failed");
+        unsafe { wren_sys::wrenHasModule(self.vm, module.as_ptr()) }
+    }
+
     pub fn set_slot_new_list(&self, slot: SlotId) {
         self.ensure_slots(slot + 1);
         unsafe { wren_sys::wrenSetSlotNewList(self.vm, slot as raw::c_int) }
@@ -1079,7 +1090,7 @@ impl VM {
 
     /// Looks up the specifed [module] for the specified [class]
     /// If it's type matches with type T, will create a new instance in [slot]
-    ///  
+    ///
     /// WARNING: This *will* overwrite slot 0, so be careful.
     pub fn set_slot_new_foreign<M: AsRef<str>, C: AsRef<str>, T: 'static + ClassObject>(
         &self, module: M, class: C, object: T, slot: SlotId,
