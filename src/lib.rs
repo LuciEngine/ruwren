@@ -82,6 +82,12 @@ pub struct Handle<'a> {
     vm: marker::PhantomData<&'a VM>,
 }
 
+impl Handle {
+    pub fn exists(&self) -> bool {
+        !self.handle.is_null()
+    }
+}
+
 impl<'a> Drop for Handle<'a> {
     fn drop(&mut self) {
         unsafe {
