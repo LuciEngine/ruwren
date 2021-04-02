@@ -82,7 +82,7 @@ pub struct Handle<'a> {
     vm: marker::PhantomData<&'a VM>,
 }
 
-impl Handle {
+impl<'a> Handle<'a> {
     pub fn exists(&self) -> bool {
         !self.handle.is_null()
     }
@@ -99,6 +99,12 @@ impl<'a> Drop for Handle<'a> {
 /// A handle to a Wren method call
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunctionHandle<'a>(Handle<'a>);
+
+impl<'a> FunctionHandle<'a> {
+    pub fn exists(&self) -> bool {
+        self.0.exists()
+    }
+}
 
 /// Simulates a module structure for foreign functions
 #[derive(Debug, Clone, Default)]
